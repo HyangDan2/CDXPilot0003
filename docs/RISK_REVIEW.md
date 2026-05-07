@@ -1,22 +1,22 @@
 # Breakdown Risk Review
 
-This project is designed as a simulator first. Live trading and live KIS data
-collection require explicit implementation and verification of Korea Investment
-OpenAPI TR IDs from the supplied manual.
+This project is designed as a simulator first. Real trading and KIS REST data
+use require explicit verification of Korea Investment OpenAPI TR IDs from the
+supplied manual.
 
 ## Main Failure Modes
 
 - `config.yaml` is missing: copy `config.example.yaml` to `config.yaml`.
-- Placeholder secrets are used while Telegram, LLM, or live KIS mode is enabled.
-- KIS live adapter has documented REST endpoints, but response parsing still
+- Placeholder secrets are used while Telegram, LLM, or KIS REST mode is enabled.
+- KIS REST adapter has documented REST endpoints, but response parsing still
   needs live-account verification.
 - Korean exchange holiday list is incomplete unless configured in `data.holidays`.
 - NXT data may be unavailable, delayed, rate-limited, or shaped differently from
   regular-market data.
-- Collector skeleton persists snapshots, but production NXT accuracy depends on
-  wiring the KIS NXT websocket stream into the provider.
+- Production NXT accuracy depends on importing verified NXT snapshots from an
+  external capture process or confirmed historical endpoint.
 - REST overtime snapshots must not be treated as historical 08:50 NXT evidence.
-- Market-cap top 10 from D-1 needs a reliable source before live mode is used.
+- Market-cap top 10 from D-1 needs a reliable source before real data mode is used.
 - Futures symbol and price convention must be mapped to the exact KIS futures API.
 - Recent complete-data-day mode can return zero selected days until raw data has
   been collected or imported.

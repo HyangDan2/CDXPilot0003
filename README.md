@@ -13,6 +13,7 @@ NXT pre-market returns of the previous-trading-day KOSPI market-cap top 10.
 - Sends raw data to Telegram before LLM analysis when enabled.
 - Runs sequential sweep simulations across signal and exit times.
 - Generates markdown reports.
+- Generates a compact raw report plus an LLM bridge evidence report.
 - Generates return distribution and signal/exit heatmap charts.
 - Builds a stateless, provided-context-only LLM prompt.
 - Calls an OpenAI-compatible Nvidia Nemotron 120B endpoint when enabled.
@@ -82,7 +83,8 @@ the complete days that are available.
 
 Use `simulation.date_selection.mode: "stored_snapshots"` only when normalized
 SQLite snapshots have been imported or written by a separate external process.
-The application no longer runs a live updating collector.
+The application does not run an in-app NXT collector; stored snapshots must come
+from import files or a separate capture process.
 
 Defaults:
 
@@ -94,8 +96,31 @@ Defaults:
 
 - Raw data markdown is sent as a document.
 - Simulation result markdown is sent as a document.
+- LLM bridge evidence is generated for prompt input and is not sent to Telegram unless `telegram.delivery.send_llm_bridge_file` is enabled.
 - Charts are sent as Telegram photos so they render inline.
 - LLM output is sent as plain text chunks without Telegram markdown parsing.
+
+## Report Files
+
+Each run writes these markdown artifacts:
+
+- `raw_data_*.md`: compact human review report with NXT signal summary, key futures prices, and each date's best entry-exit cases.
+- `llm_bridge_*.md`: compact evidence bridge used by the LLM prompt. It selects date-by-date best cases and aggregate evidence instead of passing a full raw ledger.
+- `simulation_report_*.md`: sweep metrics, exit summaries, and trade evidence.
+
+The full `09:00~15:20` 10-minute exit sweep is still simulated. The raw report intentionally shows only selected daily best cases so it stays readable; the bridge markdown gives the LLM enough evidence without forcing a huge raw ledger into the prompt.
+
+Daily best-case rows include `Signal Date`. By default, the raw report and LLM
+bridge keep only one best case per signal date to avoid double-counting the same
+day across overlapping conditions.
+
+## Real Data Rules
+
+- `mock` mode is for development and UI testing only.
+- `kis_rest` mode never falls back to mock data.
+- KIS REST mode rejects multi-time NXT signal replication because the inspected REST endpoint does not provide historical `08:00~08:50` NXT snapshots.
+- KIS futures minute rows are selected by the nearest row at or before the requested time.
+- Current futures price fallback is disabled for historical simulation. Missing minute data should make the affected date/time incomplete instead of silently mixing in current prices.
 
 ## LLM Prompt Policy
 
@@ -103,6 +128,7 @@ Defaults:
 - Instructions are written in English.
 - Output is Korean Markdown.
 - Simulation interpretation must use only provided context.
+- LLM prompt input uses `llm_bridge_*.md` style evidence, not the full raw report.
 - General trading/risk-management guidance is allowed only in the strategy proposal section and must be labeled as general guidance.
 - The output starts with a conclusion first, then Top 5 conditions, strategy proposal, evidence, risks, and AI usage warning.
 
@@ -128,9 +154,11 @@ Implemented:
 - Secret-safe config example
 - Mock deterministic market data provider
 - Korea Investment REST client for token issuance, market-cap ranking, overtime price, futures price, and futures minute chart endpoints identified from the supplied manual
+- KIS REST futures minute selection uses the nearest row at or before the requested time and disables current-price fallback for historical simulation
 - D-1 previous trading day universe resolver
 - Sequential signal-time and exit-time sweep engine
 - Markdown raw/simulation reports
+- LLM bridge evidence markdown for prompt input
 - Telegram sender
 - Stateless LLM prompt builder
 - OpenAI-compatible LLM client
@@ -144,7 +172,7 @@ Implemented:
 
 Not yet implemented:
 
-- Historical NXT websocket collector. Live updating was intentionally removed from this application.
+- Historical NXT snapshot importer or external capture process.
 - Fully verified real KIS response parsing against a live account
 - Real historical D-1 KOSPI market-cap archive for old simulation dates
 - Production-grade Korean holiday calendar

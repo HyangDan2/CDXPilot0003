@@ -8,11 +8,12 @@ from typing import Callable
 from kosim.config import AppConfig
 from kosim.data.calendar import parse_holidays, trading_days
 from kosim.data.availability import recent_complete_days
-from kosim.data.fetcher import KisMarketDataProvider, MockMarketDataProvider
+from kosim.data.providers import create_market_data_provider
 from kosim.data.storage import SQLiteStore
 from kosim.data.universe import UniverseResolver
 from kosim.reports.llm_client import OpenAICompatibleLLMClient
 from kosim.reports.llm_prompt import build_llm_prompt
+from kosim.reports.llm_bridge import llm_bridge_markdown
 from kosim.reports.raw_markdown import raw_data_markdown
 from kosim.reports.charts import case_chart_paths, generate_charts, summary_chart_paths
 from kosim.reports.simulation_markdown import simulation_report_markdown
@@ -25,6 +26,7 @@ from kosim.simulation.sweep import all_needed_futures_times, time_range
 class PipelineArtifacts:
     result: SimulationResult
     raw_report_path: Path
+    llm_bridge_path: Path
     simulation_report_path: Path
     llm_prompt_path: Path | None
     llm_report_path: Path | None
@@ -141,8 +143,10 @@ class DailyPipelineRunner:
 
         self.emit(RunEvent("markdown_report_generation", "running", "Generating markdown reports"))
         raw_path = report_dir / f"raw_data_{run_tag}.md"
+        bridge_path = report_dir / f"llm_bridge_{run_tag}.md"
         sim_path = report_dir / f"simulation_report_{run_tag}.md"
-        raw_path.write_text(raw_data_markdown(result.raw_data), encoding="utf-8")
+        raw_path.write_text(raw_data_markdown(result, cfg), encoding="utf-8")
+        bridge_path.write_text(llm_bridge_markdown(cfg, result), encoding="utf-8")
         sim_path.write_text(
             simulation_report_markdown(result, int(cfg.get("report", {}).get("markdown", {}).get("top_n_conditions", 20))),
             encoding="utf-8",
@@ -166,6 +170,8 @@ class DailyPipelineRunner:
         if delivery_cfg.get("send_raw_markdown_files", True):
             self.emit(RunEvent("telegram_raw_send", "running", "Sending raw data report to Telegram"))
             telegram.send_file(raw_path, "Raw data summary")
+            if delivery_cfg.get("send_llm_bridge_file", False):
+                telegram.send_file(bridge_path, "LLM bridge evidence")
             telegram.send_file(sim_path, "Simulation result markdown")
             self.emit(RunEvent("telegram_raw_send", "success" if telegram.enabled else "skipped", "Raw Telegram step finished"))
         if telegram.enabled and chart_paths:
@@ -207,9 +213,7 @@ class DailyPipelineRunner:
             self.emit(RunEvent("telegram_llm_report_send", "skipped", "LLM is disabled"))
 
         self.emit(RunEvent("completed", "success", "Pipeline completed"))
-        return PipelineArtifacts(result, raw_path, sim_path, prompt_path, llm_report_path, chart_paths)
+        return PipelineArtifacts(result, raw_path, bridge_path, sim_path, prompt_path, llm_report_path, chart_paths)
 
     def _provider(self):
-        if self.config.get("app.mode") in {"kis_rest", "live"}:
-            return KisMarketDataProvider(self.config.values)
-        return MockMarketDataProvider()
+        return create_market_data_provider(self.config.values)

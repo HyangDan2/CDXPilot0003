@@ -119,6 +119,7 @@ class SettingsDialog(QDialog):
         self._spin(form, "llm.timeout_seconds", 1, 1000)
         self._spin(form, "llm.max_output_tokens", 1, 50000)
         self._spin(form, "llm.context_budget.max_prompt_chars", 10000, 1000000)
+        self._spin(form, "llm.context_budget.max_bridge_chars", 1000, 500000)
         self._spin(form, "llm.context_budget.max_raw_summary_chars", 1000, 500000)
         self._spin(form, "llm.context_budget.max_sweep_csv_chars", 1000, 500000)
         self._button(form, "Test LLM", self._test_llm)

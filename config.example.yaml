@@ -104,6 +104,20 @@ data:
   report_output_dir: "reports"
   holidays: []
 
+report:
+  raw:
+    daily_best_case_limit: 5
+    one_best_case_per_date: true
+    include_futures_key_prices: true
+  llm_bridge:
+    enabled: true
+    daily_best_case_limit: 5
+    per_condition_limit: 2
+    one_best_case_per_date: true
+    max_chars: 50000
+  markdown:
+    top_n_conditions: 20
+
 telegram:
   enabled: false
   bot_token: "YOUR_TELEGRAM_BOT_TOKEN"
@@ -111,6 +125,7 @@ telegram:
   delivery:
     send_raw_markdown_files: true
     send_simulation_markdown_file: true
+    send_llm_bridge_file: false
     send_llm_report_as_text: true
     send_llm_report_file: false
   text:
@@ -147,7 +162,8 @@ llm:
   context_policy: "provided_context_only"
   context_budget:
     max_prompt_chars: 120000
-    max_raw_summary_chars: 30000
+    max_bridge_chars: 50000
+    max_raw_summary_chars: 30000  # Legacy alias. LLM bridge uses max_bridge_chars.
     max_sweep_csv_chars: 50000
     compression_mode: "auto"
   rag:
@@ -156,7 +172,7 @@ llm:
     include:
       - "config_snapshot"
       - "universe_selection"
-      - "raw_data_summary"
+      - "llm_bridge_evidence"
       - "futures_data_summary"
       - "sweep_result_table"
       - "top_conditions"

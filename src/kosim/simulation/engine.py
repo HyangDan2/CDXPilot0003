@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Callable
 
-from kosim.data.fetcher import MarketDataProvider
+from kosim.data.providers.base import MarketDataProvider
 from kosim.data.models import RawMarketData
 from kosim.data.storage import SQLiteStore
 from kosim.data.universe import UniverseResolver

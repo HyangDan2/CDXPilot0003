@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from kosim.data.calendar import previous_trading_day
-from kosim.data.fetcher import MarketDataProvider
+from kosim.data.providers.base import MarketDataProvider
 from kosim.data.models import UniverseMember
 
 

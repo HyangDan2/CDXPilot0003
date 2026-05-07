@@ -26,10 +26,14 @@ Inspected on 2026-05-07.
 - NXT realtime sheet is websocket-only in the inspected manual.
 - Historical NXT snapshots by specific `08:00`, `08:10`, etc. require an
   external data import or a confirmed historical endpoint not yet mapped from
-  the workbook. The in-app live updating collector has been removed.
+  the workbook. The application does not run an in-app NXT collector.
+- KIS REST mode must not fabricate historical multi-time NXT snapshots by
+  copying one overtime/current value across multiple signal times.
+- Futures minute chart parsing should use the nearest row at or before the
+  target time. Current-price fallback is disabled for historical simulation.
 
 ## Breakdown Risk
 
-The simulator can run fully in mock mode. Live historical simulation is not
-complete until NXT snapshots and D-1 historical market-cap data are captured or
-provided by a confirmed historical endpoint.
+The simulator can run fully in mock mode for development. Real historical
+simulation is not complete until NXT snapshots and D-1 historical market-cap
+data are captured/imported or provided by a confirmed historical endpoint.

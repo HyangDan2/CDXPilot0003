@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from kosim.reports.raw_markdown import raw_data_markdown
+from kosim.reports.llm_bridge import llm_bridge_markdown
 from kosim.reports.simulation_markdown import metrics_to_csv, trade_evidence_to_csv
 from kosim.simulation.engine import SimulationResult
 
@@ -11,7 +11,7 @@ def build_llm_prompt(config_snapshot: dict, result: SimulationResult, data_limit
     limitations = data_limitations or []
     budget = config_snapshot.get("llm", {}).get("context_budget", {})
     max_prompt_chars = int(budget.get("max_prompt_chars", 120000))
-    max_raw_summary_chars = int(budget.get("max_raw_summary_chars", 30000))
+    max_bridge_chars = int(budget.get("max_bridge_chars", budget.get("max_raw_summary_chars", 30000)))
     max_sweep_csv_chars = int(budget.get("max_sweep_csv_chars", 50000))
     top_conditions = result.metrics[:20]
     stable_conditions = sorted(
@@ -21,14 +21,14 @@ def build_llm_prompt(config_snapshot: dict, result: SimulationResult, data_limit
     )[:20]
     worst_conditions = sorted(result.metrics, key=lambda item: item.total_return_pct)[:20]
 
-    raw_summary = _cap_section(raw_data_markdown(result.raw_data), max_raw_summary_chars, "RAW_DATA_SUMMARY")
+    bridge_evidence = _cap_section(llm_bridge_markdown(config_snapshot, result), max_bridge_chars, "LLM_BRIDGE_EVIDENCE")
     sweep_csv = _cap_section(metrics_to_csv(result.metrics), max_sweep_csv_chars, "SWEEP_RESULTS_CSV")
     trade_evidence = trade_evidence_to_csv(result, limit=500)
     prompt = "\n\n".join(
         [
             _instructions(len(result.raw_data)),
             "[CONFIG_SNAPSHOT]\n" + json.dumps(_redacted_config(config_snapshot), ensure_ascii=False, indent=2),
-            "[RAW_DATA_SUMMARY]\n" + raw_summary,
+            "[LLM_BRIDGE_EVIDENCE]\n" + bridge_evidence,
             "[SWEEP_RESULTS_CSV]\n" + sweep_csv,
             "[TOP_CONDITIONS_CSV]\n" + metrics_to_csv(top_conditions),
             "[STABLE_CONDITIONS_CSV]\n" + metrics_to_csv(stable_conditions),
@@ -57,6 +57,7 @@ If you use general knowledge, clearly label it as general guidance.
 Do not present general guidance as proven by the provided simulation unless evidence exists in the provided context.
 
 Analyze the sweep simulation results for a KOSPI200 futures long strategy based on stored NXT pre-market stock movement snapshots.
+Use LLM_BRIDGE_EVIDENCE as the compact day-by-day evidence layer. It contains selected daily best cases and signal snapshots; it is not a full raw ledger.
 
 Strategy definition:
 - For each simulation date D, the stock universe is selected immediately before data fetching.
@@ -74,6 +75,7 @@ Decision principles:
 - Consider practical execution timing.
 - Focus on repeatability, robustness, and downside control.
 - If a condition appears in metrics, verify it against the TRADE_EVIDENCE_CSV table.
+- Use LLM_BRIDGE_EVIDENCE to explain why selected days support or weaken the recommendation.
 - Do not claim a condition is unexplained unless it is absent from TRADE_EVIDENCE_CSV.
 
 Output language: Korean.

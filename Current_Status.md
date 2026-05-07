@@ -11,12 +11,19 @@ Updated: 2026-05-08
 - Added D-1 previous Korean trading day resolver.
 - Added D-1 KOSPI market-cap top 10 universe resolver interface.
 - Added deterministic mock market data provider.
+  - Mock futures prices now avoid forced one-way intraday upward drift.
+- Refactored market data providers into `kosim.data.providers`.
+  - `kosim.data.fetcher` remains as a compatibility export layer.
 - Added `KisRestClient` from the supplied Korea Investment OpenAPI manual:
   - `/oauth2/tokenP`
   - `/uapi/domestic-stock/v1/ranking/market-cap`
   - `/uapi/domestic-stock/v1/quotations/inquire-overtime-price`
   - `/uapi/domestic-futureoption/v1/quotations/inquire-price`
   - `/uapi/domestic-futureoption/v1/quotations/inquire-time-fuopchartprice`
+- Hardened KIS REST simulation data rules:
+  - multi-time NXT replication is rejected in KIS REST mode
+  - futures minute chart rows are selected by nearest time at or before target
+  - current futures price fallback is disabled for historical simulation
 - Added `docs/KIS_MANUAL_NOTES.md` with relevant TR IDs and endpoint notes.
 - Added sequential sweep simulator:
   - historical stored-snapshot signal time: 08:50
@@ -45,7 +52,20 @@ Updated: 2026-05-08
   - uses only already stored complete raw data
   - does not fetch new data
   - does not use calendar-only working-day guesses
-- Added raw data markdown report.
+- Added compact raw data markdown report:
+  - NXT signal summary
+  - key futures prices
+  - each date's best entry-exit cases
+  - Signal Date column
+  - one best case per date by default
+- Added LLM bridge markdown report:
+  - compact evidence layer for prompt input
+  - aggregate best evidence
+  - date-by-date selected best cases
+  - Signal Date column
+  - one best case per date by default
+- Refactored report evidence helpers into a shared module used by raw reports
+  and LLM bridge generation.
 - Added simulation markdown report.
 - Added chart generation:
   - total return heatmap
@@ -67,6 +87,7 @@ Updated: 2026-05-08
   - external knowledge and prior memory are prohibited
   - general trading guidance is allowed only in the strategy proposal section
   - context auto-compression guard is configured
+  - uses LLM bridge evidence instead of full raw report content
   - secrets are redacted before prompt construction
 - Added OpenAI-compatible LLM client configured for Nvidia Nemotron 120B style endpoints.
 - Added PySide6 GUI:
@@ -85,7 +106,7 @@ Updated: 2026-05-08
 ## Verification Performed
 
 - `python -m pytest`
-  - Result: 12 passed
+  - Result: 16 passed
 - `PYTHONPATH=src python -m kosim.app --example`
   - Result: mock pipeline completed successfully
   - Generated ignored runtime artifacts in `data/` and `reports/`
@@ -98,18 +119,18 @@ Updated: 2026-05-08
 
 ## Not Implemented Yet
 
-- Production KIS NXT websocket parser for true NXT live ticks.
-  - Live updating/collector code was removed because it was unstable.
+- Production NXT snapshot importer or separate capture-process integration.
 - Live-account verification of KIS response field parsing.
 - Historical D-1 KOSPI market-cap archive for old simulation dates.
 - Production Korean exchange holiday calendar.
 - Live order placement.
-- Advanced visualization such as heatmap and equity curve chart.
-  - Heatmaps are implemented; equity curve chart remains future work.
+- Advanced visualization such as equity curve charts.
 
 ## Known Breakdown Risks
 
-- KIS REST mode may fail until KIS response parsing is tested against real API responses.
+- KIS REST mode may fail or mark dates incomplete until KIS response parsing is tested against real API responses.
+- KIS REST historical simulation intentionally fails when futures minute data is missing instead of falling back to current price.
+- KIS REST does not support historical multi-time NXT `08:00~08:50` replication through the inspected REST endpoint.
 - Historical NXT snapshots are not available from the REST sheets inspected so far; import external snapshots or use stored raw data.
 - The current Korean trading calendar only skips weekends unless `data.holidays` is configured.
 - Mock data is deterministic but not market-realistic.
@@ -127,5 +148,6 @@ Updated: 2026-05-08
 
 ## Next Best Step
 
-Stabilize the one-shot simulation path: add clearer complete-data diagnostics,
-then add KOSPI200 front-month contract cache/fallback for KIS REST mode.
+Stabilize the one-shot simulation path further by adding clearer complete-data
+diagnostics and KOSPI200 front-month contract cache with explicit next-month
+fallback only for contract resolution errors, not for missing historical prices.

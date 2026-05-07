@@ -142,15 +142,15 @@ class MainWindow(QMainWindow):
 
         mode_menu = self.menuBar().addMenu("Mode")
         self.mock_action = QAction("Mock Mode", self, checkable=True)
-        self.live_action = QAction("KIS REST Mode", self, checkable=True)
+        self.kis_rest_action = QAction("KIS REST Mode", self, checkable=True)
         mode_group = QActionGroup(self)
         mode_group.setExclusive(True)
         mode_group.addAction(self.mock_action)
-        mode_group.addAction(self.live_action)
+        mode_group.addAction(self.kis_rest_action)
         self.mock_action.triggered.connect(lambda: self.set_mode("mock"))
-        self.live_action.triggered.connect(lambda: self.set_mode("kis_rest"))
+        self.kis_rest_action.triggered.connect(lambda: self.set_mode("kis_rest"))
         mode_menu.addAction(self.mock_action)
-        mode_menu.addAction(self.live_action)
+        mode_menu.addAction(self.kis_rest_action)
         self._sync_mode_actions()
 
         integrations_menu = self.menuBar().addMenu("Integrations")
@@ -181,7 +181,7 @@ class MainWindow(QMainWindow):
     def _load_config_label(self) -> None:
         suffix = self.config_path if Path(self.config_path).exists() else "config.example.yaml (mock)"
         raw_mode = self.config.get("app.mode", "mock")
-        mode = "KIS_REST" if raw_mode in {"kis_rest", "live"} else "MOCK"
+        mode = "KIS_REST" if raw_mode == "kis_rest" else "MOCK"
         selection = self.config.get("simulation.date_selection.mode", "date_range")
         self.config_label.setText(f"Config: {suffix}    Mode: {mode}    Date selection: {selection}")
         self._sync_mode_actions()
@@ -285,9 +285,9 @@ class MainWindow(QMainWindow):
         if not hasattr(self, "mock_action"):
             return
         mode = self.config.get("app.mode", "mock")
-        is_kis_rest = mode in {"kis_rest", "live"}
+        is_kis_rest = mode == "kis_rest"
         self.mock_action.setChecked(not is_kis_rest)
-        self.live_action.setChecked(is_kis_rest)
+        self.kis_rest_action.setChecked(is_kis_rest)
 
     def edit_top_n(self) -> None:
         current = int(self.config.get("market.universe.top_n", 10))

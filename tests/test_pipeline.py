@@ -20,7 +20,13 @@ def test_pipeline_runs_in_mock_mode(tmp_path: Path):
 
     assert artifacts.simulation_report_path.exists()
     assert artifacts.raw_report_path.exists()
+    assert artifacts.llm_bridge_path.exists()
     assert artifacts.result.metrics
+    raw_text = artifacts.raw_report_path.read_text(encoding="utf-8")
+    bridge_text = artifacts.llm_bridge_path.read_text(encoding="utf-8")
+    assert "Daily Best Entry-Exit Cases" in raw_text
+    assert "LLM Bridge Evidence" in bridge_text
+    assert "Daily Best Cases" in bridge_text
     assert any(event.step == "completed" and event.status == "success" for event in events)
 
 

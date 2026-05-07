@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +48,7 @@ def load_config(path: str | Path = "config.yaml") -> AppConfig:
     if not isinstance(raw, dict):
         raise ConfigError("Root config must be a YAML mapping.")
 
+    raw = normalize_config(raw)
     validate_config(raw)
     return AppConfig(path=config_path, values=raw)
 
@@ -57,8 +59,31 @@ def load_example_config(path: str | Path = "config.example.yaml") -> AppConfig:
         raw = yaml.safe_load(handle) or {}
     if not isinstance(raw, dict):
         raise ConfigError("Root config must be a YAML mapping.")
+    raw = normalize_config(raw)
     validate_config(raw, allow_placeholders=True)
     return AppConfig(path=config_path, values=raw)
+
+
+def normalize_config(values: dict[str, Any]) -> dict[str, Any]:
+    normalized = deepcopy(values)
+
+    app = normalized.setdefault("app", {})
+    if app.get("mode") == "live":
+        app["mode"] = "kis_rest"
+
+    simulation = normalized.setdefault("simulation", {})
+    legacy_condition = simulation.get("signal_condition")
+    if legacy_condition and not simulation.get("signal_conditions"):
+        condition = dict(legacy_condition)
+        condition.setdefault("name", condition.get("rule", "signal_condition"))
+        simulation["signal_conditions"] = [condition]
+
+    llm = normalized.setdefault("llm", {})
+    budget = llm.setdefault("context_budget", {})
+    if "max_bridge_chars" not in budget and "max_raw_summary_chars" in budget:
+        budget["max_bridge_chars"] = budget["max_raw_summary_chars"]
+
+    return normalized
 
 
 def validate_config(values: dict[str, Any], allow_placeholders: bool = False) -> None:
@@ -81,7 +106,7 @@ def validate_config(values: dict[str, Any], allow_placeholders: bool = False) ->
         raise ConfigError(f"Missing required config values: {', '.join(missing)}")
 
     top_n = int(_get(values, "market.universe.top_n"))
-    min_positive_count = int(_get(values, "simulation.signal_condition.min_positive_count", top_n))
+    min_positive_count = _max_condition_min_positive_count(values, top_n)
     if top_n <= 0:
         raise ConfigError("market.universe.top_n must be positive.")
     if min_positive_count > top_n:
@@ -103,7 +128,7 @@ def validate_config(values: dict[str, Any], allow_placeholders: bool = False) ->
             used = [path for path in secret_paths if _get(values, path) in SECRET_PLACEHOLDERS]
             if used:
                 raise ConfigError(f"Enabled integration still has placeholder secrets: {', '.join(used)}")
-    if _get(values, "app.mode") in {"kis_rest", "live"}:
+    if _get(values, "app.mode") == "kis_rest":
         live_used = [path for path in ["kis.app_key", "kis.app_secret"] if _get(values, path) in SECRET_PLACEHOLDERS]
         if live_used:
             raise ConfigError(f"KIS REST mode still has placeholder KIS secrets: {', '.join(live_used)}")
@@ -118,6 +143,14 @@ def _get(values: dict[str, Any], dotted_path: str, default: Any = None) -> Any:
             return default
         current = current[part]
     return current
+
+
+def _max_condition_min_positive_count(values: dict[str, Any], default: int) -> int:
+    cases = _get(values, "simulation.signal_conditions", [])
+    if isinstance(cases, list) and cases:
+        counts = [int(case.get("min_positive_count", default)) for case in cases if isinstance(case, dict)]
+        return max(counts) if counts else default
+    return int(_get(values, "simulation.signal_condition.min_positive_count", default))
 
 
 def _find_placeholders(value: Any) -> list[str]:
