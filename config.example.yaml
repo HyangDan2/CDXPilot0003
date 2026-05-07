@@ -1,0 +1,179 @@
+app:
+  name: "kospi-nxt-simulator"
+  timezone: "Asia/Seoul"
+  log_level: "INFO"
+  mode: "mock"  # mock | kis_rest. kis_rest means one-shot KIS REST data fetch.
+
+kis:
+  base_url: "https://openapi.koreainvestment.com:9443"
+  paper_base_url: "https://openapivts.koreainvestment.com:29443"
+  is_paper: true
+  app_key: "YOUR_KIS_APP_KEY"
+  app_secret: "YOUR_KIS_APP_SECRET"
+  account_no: "00000000-00"
+  token_cache_path: "data/kis_token.json"
+
+market:
+  universe:
+    source: "previous_trading_day_kospi_market_cap"
+    market: "KOSPI"
+    top_n: 10
+    resolve_before_fetch: true
+    previous_day_policy: "previous_trading_day"
+    exclude:
+      preferred_shares: true
+      etf_etn: true
+      spac: true
+      suspended: true
+    fallback:
+      source: "manual"
+      symbols:
+        - "005930"
+        - "000660"
+        - "373220"
+        - "207940"
+        - "005380"
+        - "068270"
+        - "000270"
+        - "105560"
+        - "005490"
+        - "035420"
+
+  nxt:
+    signal_times:
+      - "08:50"
+
+  futures:
+    symbol: "KOSPI200_FUTURES"
+    entry_side: "long"
+
+simulation:
+  date_selection:
+    mode: "date_range"  # date_range | recent_complete_data_days | stored_snapshots
+    recent_complete_days: 30
+    require:
+      universe: true
+      nxt_signal_times: true
+      futures_times: true
+  date_range:
+    start: "2026-04-01"
+    end: "2026-05-07"
+  historical_signal_time: "08:50"
+  signal_conditions:
+    - name: "top10_5_positive"
+      rule: "min_positive_count"
+      positive_threshold_pct: 0.0
+      comparison: "greater_than"
+      min_positive_count: 5
+    - name: "top10_7_positive"
+      rule: "min_positive_count"
+      positive_threshold_pct: 0.0
+      comparison: "greater_than"
+      min_positive_count: 7
+    - name: "top10_10_positive"
+      rule: "min_positive_count"
+      positive_threshold_pct: 0.0
+      comparison: "greater_than"
+      min_positive_count: 10
+  signal_condition:
+    rule: "all_positive"
+    positive_threshold_pct: 0.0
+    comparison: "greater_than"  # greater_than means return_pct > threshold.
+    min_positive_count: 10
+  entry:
+    timing: "after_signal"
+    delay_seconds: 0
+  exit_sweep:
+    start: "09:00"
+    end: "15:20"
+    interval_minutes: 10
+  costs:
+    fee_rate: 0.0001
+    slippage_ticks: 1
+    tick_value_pct: 0.01
+  ranking:
+    primary_metric: "total_return_pct"
+    min_trade_count: 5
+    prefer_lower_drawdown: true
+
+data:
+  storage:
+    type: "sqlite"
+    path: "data/market_data.sqlite3"
+  raw_output_dir: "data/raw"
+  report_output_dir: "reports"
+  holidays: []
+
+telegram:
+  enabled: false
+  bot_token: "YOUR_TELEGRAM_BOT_TOKEN"
+  chat_id: "YOUR_TELEGRAM_CHAT_ID"
+  delivery:
+    send_raw_markdown_files: true
+    send_simulation_markdown_file: true
+    send_llm_report_as_text: true
+    send_llm_report_file: false
+  text:
+    chunk_size: 3500
+    parse_mode:
+  charts:
+    send_summary_charts: true
+    send_case_charts: true
+    case_chart_send_limit: 20
+  sequence:
+    send_raw_data_before_llm: true
+    send_llm_report_after_analysis: true
+  messages:
+    raw_data:
+      enabled: true
+      include_file: true
+      include_summary: true
+    llm_report:
+      enabled: true
+      include_markdown_file: true
+      include_summary: true
+
+llm:
+  enabled: false
+  provider: "openai_compatible"
+  base_url: "YOUR_NVIDIA_NIM_OR_COMPATIBLE_ENDPOINT"
+  api_key: "YOUR_NVIDIA_API_KEY"
+  model: "nvidia/nemotron-120b"
+  stateless: true
+  temperature: 0.5
+  timeout_seconds: 300
+  max_output_tokens: 12000
+  output_language: "ko"
+  context_policy: "provided_context_only"
+  context_budget:
+    max_prompt_chars: 120000
+    max_raw_summary_chars: 30000
+    max_sweep_csv_chars: 50000
+    compression_mode: "auto"
+  rag:
+    mode: "provided_context_only"
+    allow_external_knowledge: false
+    include:
+      - "config_snapshot"
+      - "universe_selection"
+      - "raw_data_summary"
+      - "futures_data_summary"
+      - "sweep_result_table"
+      - "top_conditions"
+      - "stable_conditions"
+      - "worst_conditions"
+      - "data_limitations"
+
+ui:
+  progress:
+    enabled: true
+    show_step_timeline: true
+    show_run_logs: true
+    show_elapsed_time: true
+    show_current_date: true
+    refresh_interval_ms: 500
+
+logging:
+  level: "INFO"
+  save_run_log: true
+  run_log_dir: "logs"
