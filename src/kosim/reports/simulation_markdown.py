@@ -85,7 +85,7 @@ def _metrics_table(metrics: list[ConditionMetrics]) -> str:
 
 def trade_evidence_to_csv(result: SimulationResult, limit: int | None = None) -> str:
     rows = [
-        "condition_name,simulation_date,signal_time,exit_time,entry_price,exit_price,gross_return_pct,fee_pct,slippage_pct,net_return_pct,positive_count,triggered_symbols"
+        "condition_name,direction,side,label,simulation_date,signal_time,exit_time,entry_price,exit_price,gross_return_pct,fee_pct,slippage_pct,net_return_pct,trigger_count,triggered_symbols"
     ]
     trades = result.trades if limit is None else result.trades[:limit]
     for trade in trades:
@@ -93,6 +93,9 @@ def trade_evidence_to_csv(result: SimulationResult, limit: int | None = None) ->
             ",".join(
                 [
                     trade.condition_name,
+                    trade.direction,
+                    trade.side,
+                    trade.label,
                     trade.simulation_date.isoformat(),
                     trade.signal_time,
                     trade.exit_time,
@@ -102,7 +105,7 @@ def trade_evidence_to_csv(result: SimulationResult, limit: int | None = None) ->
                     f"{trade.fee_pct:.6f}",
                     f"{trade.slippage_pct:.6f}",
                     f"{trade.net_return_pct:.6f}",
-                    str(trade.positive_count),
+                    str(trade.trigger_count),
                     "|".join(trade.triggered_symbols),
                 ]
             )
@@ -112,17 +115,17 @@ def trade_evidence_to_csv(result: SimulationResult, limit: int | None = None) ->
 
 def _trade_evidence_table(result: SimulationResult, limit: int = 50) -> str:
     lines = [
-        "| Condition | Date | Signal | Exit | Entry | Exit Price | Gross % | Net % | Positives |",
-        "|---|---|---|---|---:|---:|---:|---:|---:|",
+        "| Condition | Direction | Side | Date | Signal | Exit | Entry | Exit Price | Gross % | Net % | Trigger Count |",
+        "|---|---|---|---|---|---|---:|---:|---:|---:|---:|",
     ]
     for trade in result.trades[:limit]:
         lines.append(
-            f"| {trade.condition_name} | {trade.simulation_date.isoformat()} | {trade.signal_time} | {trade.exit_time} | "
+            f"| {trade.condition_name} | {trade.direction} | {trade.side} | {trade.simulation_date.isoformat()} | {trade.signal_time} | {trade.exit_time} | "
             f"{trade.entry_price:.3f} | {trade.exit_price:.3f} | {trade.gross_return_pct:.3f} | "
-            f"{trade.net_return_pct:.3f} | {trade.positive_count} |"
+            f"{trade.net_return_pct:.3f} | {trade.trigger_count} |"
         )
     if len(result.trades) > limit:
-        lines.append(f"| ... | ... | ... | ... | ... | ... | ... | ... | {len(result.trades) - limit} more rows |")
+        lines.append(f"| ... | ... | ... | ... | ... | ... | ... | ... | ... | ... | {len(result.trades) - limit} more rows |")
     return "\n".join(lines)
 
 

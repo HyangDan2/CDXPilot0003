@@ -7,7 +7,12 @@ from kosim.reports.simulation_markdown import metrics_to_csv, trade_evidence_to_
 from kosim.simulation.engine import SimulationResult
 
 
-def build_llm_prompt(config_snapshot: dict, result: SimulationResult, data_limitations: list[str] | None = None) -> str:
+def build_llm_prompt(
+    config_snapshot: dict,
+    result: SimulationResult,
+    data_limitations: list[str] | None = None,
+    condition_name: str | None = None,
+) -> str:
     limitations = data_limitations or []
     budget = config_snapshot.get("llm", {}).get("context_budget", {})
     max_prompt_chars = int(budget.get("max_prompt_chars", 120000))
@@ -26,7 +31,7 @@ def build_llm_prompt(config_snapshot: dict, result: SimulationResult, data_limit
     trade_evidence = trade_evidence_to_csv(result, limit=500)
     prompt = "\n\n".join(
         [
-            _instructions(len(result.raw_data)),
+            _instructions(len(result.raw_data), condition_name),
             "[CONFIG_SNAPSHOT]\n" + json.dumps(_redacted_config(config_snapshot), ensure_ascii=False, indent=2),
             "[LLM_BRIDGE_EVIDENCE]\n" + bridge_evidence,
             "[SWEEP_RESULTS_CSV]\n" + sweep_csv,
@@ -42,8 +47,16 @@ def build_llm_prompt(config_snapshot: dict, result: SimulationResult, data_limit
     return prompt
 
 
-def _instructions(complete_data_days: int) -> str:
+def _instructions(complete_data_days: int, condition_name: str | None = None) -> str:
+    condition_clause = (
+        f"\nThis is a stateless single-condition simulation analysis.\nCondition name: {condition_name}.\n"
+        "Analyze only the provided data for this condition. Do not use prior queue items, previous LLM reports, memory, or assumptions not present in this prompt.\n"
+        "Inverse means short KOSPI200 futures, not an inverse ETF/ETN.\n"
+        if condition_name
+        else ""
+    )
     return """You are a quantitative trading strategy analyst.
+""" + condition_clause + """
 
 You must separate evidence-based simulation analysis from general trading guidance.
 
@@ -56,15 +69,16 @@ For the "매매전략 제안" section only, you may use general trading and risk
 If you use general knowledge, clearly label it as general guidance.
 Do not present general guidance as proven by the provided simulation unless evidence exists in the provided context.
 
-Analyze the sweep simulation results for a KOSPI200 futures long strategy based on stored NXT pre-market stock movement snapshots.
+Analyze the sweep simulation results for a KOSPI200 futures strategy based on stored NXT pre-market stock movement snapshots.
 Use LLM_BRIDGE_EVIDENCE as the compact day-by-day evidence layer. It contains selected daily best cases and signal snapshots; it is not a full raw ledger.
 
 Strategy definition:
 - For each simulation date D, the stock universe is selected immediately before data fetching.
 - The universe is the KOSPI market-cap top N stocks from D-1, where D-1 means the previous Korean trading day.
 - Historical simulation uses the configured 08:50 NXT snapshot as the signal unless the provided config says otherwise.
-- Default signal conditions are top10_5_positive, top10_7_positive, and top10_10_positive.
-- If a condition is satisfied at the signal time, the strategy enters a long position in KOSPI200 futures.
+- Default queued strategy conditions include 5/7/10 up-long and 5/7/10 down-inverse cases.
+- If an up/long condition is satisfied at the signal time, the strategy enters a long position in KOSPI200 futures.
+- If a down/inverse condition is satisfied at the signal time, inverse means short KOSPI200 futures, not an inverse ETF/ETN.
 - The position is closed at each tested exit time from the provided sweep table.
 - The result is evaluated by condition_name, signal_time, and exit_time.
 

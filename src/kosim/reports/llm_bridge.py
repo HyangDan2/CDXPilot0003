@@ -67,15 +67,15 @@ def llm_bridge_markdown(config: dict, result: SimulationResult) -> str:
                 "",
                 "#### Daily Best Cases",
                 "",
-                "| Rank | Signal Date | Condition | Entry Time | Exit Time | Entry Price | Exit Price | Net Return % | Win | Positives |",
-                "|---:|---|---|---|---|---:|---:|---:|---|---:|",
+                "| Rank | Signal Date | Condition | Direction | Side | Entry Time | Exit Time | Entry Price | Exit Price | Net Return % | Win | Trigger Count |",
+                "|---:|---|---|---|---|---|---|---:|---:|---:|---|---:|",
             ]
         )
         daily_best = daily_best_cases(daily_trades, daily_limit, one_best, per_condition_limit)
         for rank, trade in enumerate(daily_best, start=1):
             lines.append(trade_markdown_row(rank, trade))
         if not daily_best:
-            lines.append("| - | - | No passed condition | - | - | - | - | - | - | - |")
+            lines.append("| - | - | No passed condition | - | - | - | - | - | - | - | - | - |")
         lines.append("")
 
     text = "\n".join(lines)

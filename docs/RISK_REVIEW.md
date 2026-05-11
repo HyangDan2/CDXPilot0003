@@ -36,6 +36,19 @@ supplied manual.
   but simulation conclusions must remain RAG/provided-context-only.
 - Simulation output can be misleading if trade count is too small or if one
   outlier day dominates returns.
+- `inverse` conditions are simulated as KOSPI200 futures short positions. They
+  do not model inverse ETF/ETN tracking error, liquidity, tax, or product risk.
+- Multiple enabled conditions can trigger on the same date. The simulator keeps
+  all triggered trades, so downstream interpretation must detect conflicts.
+- LLM queue reports are stateless per condition and should not be interpreted as
+  a cross-condition portfolio optimizer.
+- Scheduler launchd jobs can fail if the repository path, Python interpreter,
+  or virtual environment changes after installation.
+- Scheduled jobs re-fetch and re-analyze at every configured run time, so API
+  rate limits, transient network failures, or partial market data can affect
+  later runs independently from earlier runs.
+- `schedule.enabled` controls execution permission. A launchd job can be
+  installed but still skip every run while the config toggle is off.
 - Slippage, fees, tick value, and entry execution assumptions are simplified.
 
 ## Guardrails Already Implemented
@@ -51,6 +64,9 @@ supplied manual.
 - GUI runner executes pipeline in a worker thread and shows step status.
 - GUI integration tests run in worker threads so slow network calls do not block
   the main run pipeline.
+- Scheduler jobs use a lock file to avoid overlapping runs.
+- Scheduler state is written to `data/scheduler_state.json`, and logs are written
+  under `logs/`; both locations are ignored by git.
 - Chart generation writes under `reports/charts/{run_tag}` and is ignored by git.
 - Snapshot writes use primary-key `insert or ignore` semantics to avoid
   overwriting local data.

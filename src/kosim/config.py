@@ -77,11 +77,29 @@ def normalize_config(values: dict[str, Any]) -> dict[str, Any]:
         condition = dict(legacy_condition)
         condition.setdefault("name", condition.get("rule", "signal_condition"))
         simulation["signal_conditions"] = [condition]
+    if not simulation.get("strategy_conditions"):
+        simulation["strategy_conditions"] = _default_strategy_conditions(simulation.get("signal_conditions", []))
 
     llm = normalized.setdefault("llm", {})
     budget = llm.setdefault("context_budget", {})
     if "max_bridge_chars" not in budget and "max_raw_summary_chars" in budget:
         budget["max_bridge_chars"] = budget["max_raw_summary_chars"]
+    queue = llm.setdefault("queue", {})
+    queue.setdefault("enabled", True)
+    queue.setdefault("stateless_per_condition", True)
+    queue.setdefault("max_items", 6)
+    queue.setdefault("send_final_summary", False)
+    queue.setdefault("include_empty_results", False)
+
+    telegram = normalized.setdefault("telegram", {})
+    telegram_queue = telegram.setdefault("queue", {})
+    telegram_queue.setdefault("send_only_llm_queue_items", True)
+    telegram_queue.setdefault("send_condition_charts", True)
+    telegram_queue.setdefault("max_condition_charts", 3)
+
+    schedule = _default_schedule_config()
+    schedule.update(normalized.get("schedule") or {})
+    normalized["schedule"] = schedule
 
     return normalized
 
@@ -146,11 +164,94 @@ def _get(values: dict[str, Any], dotted_path: str, default: Any = None) -> Any:
 
 
 def _max_condition_min_positive_count(values: dict[str, Any], default: int) -> int:
+    strategy_cases = _get(values, "simulation.strategy_conditions", [])
+    if isinstance(strategy_cases, list) and strategy_cases:
+        counts = [
+            int(case.get("signal", {}).get("min_count", default))
+            for case in strategy_cases
+            if isinstance(case, dict)
+        ]
+        return max(counts) if counts else default
     cases = _get(values, "simulation.signal_conditions", [])
     if isinstance(cases, list) and cases:
         counts = [int(case.get("min_positive_count", default)) for case in cases if isinstance(case, dict)]
         return max(counts) if counts else default
     return int(_get(values, "simulation.signal_condition.min_positive_count", default))
+
+
+def _default_strategy_conditions(signal_conditions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if signal_conditions:
+        converted = []
+        for case in signal_conditions:
+            min_count = int(case.get("min_positive_count", 10))
+            converted.append(
+                {
+                    "name": _sanitize_condition_name(case.get("name", f"top10_{min_count}_up_long")),
+                    "enabled": True,
+                    "llm_queue": True,
+                    "rule": case.get("rule", "min_positive_count"),
+                    "comparison": case.get("comparison", "greater_than"),
+                    "signal": {
+                        "direction": "up",
+                        "threshold_pct": float(case.get("positive_threshold_pct", 0.0)),
+                        "min_count": min_count,
+                    },
+                    "trade": {
+                        "instrument": "kospi200_futures",
+                        "side": "long",
+                        "label": "long",
+                        "entry_time": "08:50",
+                    },
+                }
+            )
+        return converted
+    cases = []
+    for count in [5, 7, 10]:
+        cases.append(_strategy_condition(f"top10_{count}_up_long", "up", count, "long", "long", True))
+    for count in [5, 7, 10]:
+        cases.append(_strategy_condition(f"top10_{count}_down_inverse", "down", count, "short", "inverse", True))
+    return cases
+
+
+def _strategy_condition(name: str, direction: str, min_count: int, side: str, label: str, llm_queue: bool) -> dict[str, Any]:
+    return {
+        "name": _sanitize_condition_name(name),
+        "enabled": True,
+        "llm_queue": llm_queue,
+        "rule": "min_positive_count",
+        "comparison": "greater_than",
+        "signal": {
+            "direction": direction,
+            "threshold_pct": 0.0,
+            "min_count": min_count,
+        },
+        "trade": {
+            "instrument": "kospi200_futures",
+            "side": side,
+            "label": label,
+            "entry_time": "08:50",
+        },
+    }
+
+
+def _sanitize_condition_name(value: Any) -> str:
+    text = str(value or "condition").lower()
+    chars = [char if char.isalnum() else "_" for char in text]
+    sanitized = "_".join("".join(chars).split("_"))
+    return sanitized or "condition"
+
+
+def _default_schedule_config() -> dict[str, Any]:
+    return {
+        "enabled": False,
+        "timezone": "Asia/Seoul",
+        "run_times": ["08:50", "12:50", "16:50", "20:50"],
+        "startup_delay_seconds": 30,
+        "skip_if_running": True,
+        "lock_file": "data/scheduler.lock",
+        "state_file": "data/scheduler_state.json",
+        "log_dir": "logs",
+    }
 
 
 def _find_placeholders(value: Any) -> list[str]:

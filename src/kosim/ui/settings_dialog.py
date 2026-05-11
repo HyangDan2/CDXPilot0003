@@ -69,6 +69,7 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(self._market_tab(), "Market")
         self.tabs.addTab(self._simulation_tab(), "Simulation")
         self.tabs.addTab(self._data_tab(), "Data")
+        self.tabs.addTab(self._schedule_tab(), "Schedule")
 
     def _general_tab(self) -> QWidget:
         widget = QWidget()
@@ -164,6 +165,19 @@ class SettingsDialog(QDialog):
         self._line(form, "data.report_output_dir")
         return widget
 
+    def _schedule_tab(self) -> QWidget:
+        widget = QWidget()
+        form = QFormLayout(widget)
+        self._check(form, "schedule.enabled")
+        self._line(form, "schedule.timezone")
+        self._line(form, "schedule.run_times", transform=lambda v: ", ".join(v or []))
+        self._spin(form, "schedule.startup_delay_seconds", 0, 3600)
+        self._check(form, "schedule.skip_if_running")
+        self._line(form, "schedule.lock_file")
+        self._line(form, "schedule.state_file")
+        self._line(form, "schedule.log_dir")
+        return widget
+
     def _line(self, form: QFormLayout, path: str, password: bool = False, transform=None) -> None:
         value = self._get(path, "")
         edit = QLineEdit(str(transform(value) if transform else value))
@@ -217,7 +231,7 @@ class SettingsDialog(QDialog):
         for path, widget in self.fields.items():
             if isinstance(widget, QLineEdit):
                 value: Any = widget.text()
-                if path == "market.nxt.signal_times":
+                if path in {"market.nxt.signal_times", "schedule.run_times"}:
                     value = [item.strip() for item in value.split(",") if item.strip()]
             elif isinstance(widget, QCheckBox):
                 value = widget.isChecked()

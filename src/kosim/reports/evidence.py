@@ -77,7 +77,7 @@ def exit_sweep_label(config: dict | None) -> str:
 
 
 def condition_names(config: dict) -> list[str]:
-    cases = config.get("simulation", {}).get("signal_conditions") or []
+    cases = config.get("simulation", {}).get("strategy_conditions") or config.get("simulation", {}).get("signal_conditions") or []
     return [case.get("name", case.get("rule", "condition")) for case in cases]
 
 
@@ -98,8 +98,9 @@ def passed_conditions(trades: list[Trade], signal_time: str) -> str:
 def trade_markdown_row(rank: int, trade: Trade) -> str:
     win = "Y" if trade.net_return_pct > 0 else "N"
     return (
-        f"| {rank} | {trade.simulation_date.isoformat()} | {trade.condition_name} | {trade.signal_time} | {trade.exit_time} | "
-        f"{trade.entry_price:.3f} | {trade.exit_price:.3f} | {trade.net_return_pct:.3f} | {win} | {trade.positive_count} |"
+        f"| {rank} | {trade.simulation_date.isoformat()} | {trade.condition_name} | {trade.direction} | {trade.side} | "
+        f"{trade.signal_time} | {trade.exit_time} | {trade.entry_price:.3f} | {trade.exit_price:.3f} | "
+        f"{trade.net_return_pct:.3f} | {win} | {trade.trigger_count} |"
     )
 
 

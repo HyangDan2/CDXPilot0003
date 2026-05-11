@@ -22,6 +22,8 @@ def test_pipeline_runs_in_mock_mode(tmp_path: Path):
     assert artifacts.raw_report_path.exists()
     assert artifacts.llm_bridge_path.exists()
     assert artifacts.result.metrics
+    assert artifacts.condition_results
+    assert any(item.condition_name == "top10_7_down_inverse" for item in artifacts.condition_results)
     raw_text = artifacts.raw_report_path.read_text(encoding="utf-8")
     bridge_text = artifacts.llm_bridge_path.read_text(encoding="utf-8")
     assert "Daily Best Entry-Exit Cases" in raw_text

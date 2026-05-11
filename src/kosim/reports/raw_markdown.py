@@ -66,8 +66,8 @@ def raw_data_markdown(result_or_raw_items, config: dict | None = None) -> str:
             [
                 "### Daily Best Entry-Exit Cases",
                 "",
-                "| Rank | Signal Date | Condition | Entry Time | Exit Time | Entry Price | Exit Price | Net Return % | Win | Positives |",
-                "|---:|---|---|---|---|---:|---:|---:|---|---:|",
+                "| Rank | Signal Date | Condition | Direction | Side | Entry Time | Exit Time | Entry Price | Exit Price | Net Return % | Win | Trigger Count |",
+                "|---:|---|---|---|---|---|---|---:|---:|---:|---|---:|",
             ]
         )
         best = daily_best_cases(daily_trades, daily_limit, one_best)
@@ -75,6 +75,6 @@ def raw_data_markdown(result_or_raw_items, config: dict | None = None) -> str:
             for rank, trade in enumerate(best, start=1):
                 lines.append(trade_markdown_row(rank, trade))
         else:
-            lines.append("| - | - | No passed condition | - | - | - | - | - | - | - |")
+            lines.append("| - | - | No passed condition | - | - | - | - | - | - | - | - | - |")
         lines.append("")
     return "\n".join(lines)

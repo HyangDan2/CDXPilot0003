@@ -45,6 +45,9 @@ def test_daily_best_reports_one_case_per_date_and_includes_signal_date():
 def _trade(condition_name: str, net_return_pct: float) -> Trade:
     return Trade(
         condition_name=condition_name,
+        direction="up",
+        side="long",
+        label="long",
         simulation_date=date(2026, 5, 7),
         signal_time="08:50",
         exit_time="15:20",
@@ -54,6 +57,6 @@ def _trade(condition_name: str, net_return_pct: float) -> Trade:
         fee_pct=0.0,
         slippage_pct=0.0,
         net_return_pct=net_return_pct,
-        positive_count=7,
+        trigger_count=7,
         triggered_symbols=["005930"],
     )

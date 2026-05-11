@@ -16,3 +16,12 @@ def test_min_positive_count():
         [_row(0.1), _row(-0.1), _row(0.2)],
         {"rule": "min_positive_count", "positive_threshold_pct": 0.0, "min_positive_count": 2},
     )
+
+
+def test_down_strategy_condition_counts_negative_returns():
+    rows = [_row(-0.1), _row(-0.2), _row(0.1)]
+    condition = {
+        "rule": "min_positive_count",
+        "signal": {"direction": "down", "threshold_pct": 0.0, "min_count": 2},
+    }
+    assert signal_passes(rows, condition)

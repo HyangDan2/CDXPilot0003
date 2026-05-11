@@ -24,6 +24,9 @@ class RunEvent:
 @dataclass
 class Trade:
     condition_name: str
+    direction: str
+    side: str
+    label: str
     simulation_date: date
     signal_time: str
     exit_time: str
@@ -33,12 +36,16 @@ class Trade:
     fee_pct: float
     slippage_pct: float
     net_return_pct: float
-    positive_count: int
+    trigger_count: int
     triggered_symbols: list[str]
 
     @property
     def return_pct(self) -> float:
         return self.net_return_pct
+
+    @property
+    def positive_count(self) -> int:
+        return self.trigger_count
 
 
 @dataclass
@@ -167,17 +174,23 @@ def _simulate_raw_item(
         for condition_cfg in condition_cases:
             if not signal_passes(signal_rows, condition_cfg):
                 continue
-            positive_count, triggered_symbols = _positive_context(signal_rows, condition_cfg)
+            trigger_count, triggered_symbols = _trigger_context(signal_rows, condition_cfg)
+            direction = _condition_direction(condition_cfg)
+            side = _condition_side(condition_cfg)
+            label = _condition_label(condition_cfg)
             for exit_time in exit_times:
                 exit_price = price_by_time.get(exit_time)
                 if exit_price is None or exit_time <= signal_time:
                     continue
                 gross_return_pct, fee_pct, slippage_pct, net_return_pct = _futures_return_components(
-                    entry_price, exit_price, costs_cfg
+                    entry_price, exit_price, costs_cfg, side
                 )
                 trades.append(
                     Trade(
                         condition_name=condition_cfg.get("name", condition_cfg.get("rule", "condition")),
+                        direction=direction,
+                        side=side,
+                        label=label,
                         simulation_date=raw.simulation_date,
                         signal_time=signal_time,
                         exit_time=exit_time,
@@ -187,7 +200,7 @@ def _simulate_raw_item(
                         fee_pct=fee_pct,
                         slippage_pct=slippage_pct,
                         net_return_pct=net_return_pct,
-                        positive_count=positive_count,
+                        trigger_count=trigger_count,
                         triggered_symbols=triggered_symbols,
                     )
                 )
@@ -208,6 +221,9 @@ def _compute_all_metrics(condition_cases: list[dict], signal_times: list[str], e
 
 
 def _condition_cases(config: dict) -> list[dict]:
+    strategy_cases = config["simulation"].get("strategy_conditions")
+    if strategy_cases:
+        return [case for case in strategy_cases if case.get("enabled", True)]
     cases = config["simulation"].get("signal_conditions")
     if cases:
         return list(cases)
@@ -223,22 +239,45 @@ def _simulation_signal_times(config: dict) -> list[str]:
     return list(config["market"]["nxt"]["signal_times"])
 
 
-def _positive_context(signal_rows, condition_cfg: dict) -> tuple[int, list[str]]:
-    threshold = float(condition_cfg.get("positive_threshold_pct", 0.0))
+def _trigger_context(signal_rows, condition_cfg: dict) -> tuple[int, list[str]]:
+    signal = condition_cfg.get("signal", {})
+    direction = _condition_direction(condition_cfg)
+    threshold = float(signal.get("threshold_pct", condition_cfg.get("positive_threshold_pct", 0.0)))
     comparison = condition_cfg.get("comparison", "greater_than")
-    if comparison == "greater_or_equal":
-        positives = [row for row in signal_rows if row.return_pct >= threshold]
+    if direction == "down":
+        if comparison == "greater_or_equal":
+            triggered = [row for row in signal_rows if row.return_pct <= -threshold]
+        else:
+            triggered = [row for row in signal_rows if row.return_pct < -threshold]
     else:
-        positives = [row for row in signal_rows if row.return_pct > threshold]
-    return len(positives), [row.symbol for row in positives]
+        if comparison == "greater_or_equal":
+            triggered = [row for row in signal_rows if row.return_pct >= threshold]
+        else:
+            triggered = [row for row in signal_rows if row.return_pct > threshold]
+    return len(triggered), [row.symbol for row in triggered]
 
 
-def _futures_return_components(entry_price: float, exit_price: float, costs_cfg: dict) -> tuple[float, float, float, float]:
+def _condition_direction(condition_cfg: dict) -> str:
+    return str(condition_cfg.get("signal", {}).get("direction", condition_cfg.get("direction", "up")))
+
+
+def _condition_side(condition_cfg: dict) -> str:
+    return str(condition_cfg.get("trade", {}).get("side", condition_cfg.get("side", "long")))
+
+
+def _condition_label(condition_cfg: dict) -> str:
+    return str(condition_cfg.get("trade", {}).get("label", condition_cfg.get("label", _condition_side(condition_cfg))))
+
+
+def _futures_return_components(entry_price: float, exit_price: float, costs_cfg: dict, side: str = "long") -> tuple[float, float, float, float]:
     fee = float(costs_cfg.get("fee_rate", 0.0)) * 100
     slippage_ticks = float(costs_cfg.get("slippage_ticks", 0))
     tick_value_pct = float(costs_cfg.get("tick_value_pct", 0.0))
     slippage = slippage_ticks * tick_value_pct
-    gross = ((exit_price - entry_price) / entry_price * 100)
+    if side == "short":
+        gross = ((entry_price - exit_price) / entry_price * 100)
+    else:
+        gross = ((exit_price - entry_price) / entry_price * 100)
     return gross, fee, slippage, gross - fee - slippage
 
 

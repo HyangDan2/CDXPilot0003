@@ -37,3 +37,45 @@ def test_engine_runs_multiple_positive_count_conditions():
     assert "top10_5_positive" in trade_conditions
     assert "top10_7_positive" in trade_conditions
     assert "top10_10_positive" not in trade_conditions
+
+
+def test_engine_runs_down_inverse_as_kospi200_short():
+    config = {
+        "market": {"nxt": {"signal_times": ["08:50"]}, "futures": {"symbol": "FUT"}},
+        "simulation": {
+            "historical_signal_time": "08:50",
+            "strategy_conditions": [
+                {
+                    "name": "top10_7_down_inverse",
+                    "enabled": True,
+                    "llm_queue": True,
+                    "rule": "min_positive_count",
+                    "signal": {"direction": "down", "threshold_pct": 0.0, "min_count": 7},
+                    "trade": {"side": "short", "label": "inverse", "instrument": "kospi200_futures", "entry_time": "08:50"},
+                }
+            ],
+            "exit_sweep": {"start": "09:00", "end": "09:00", "interval_minutes": 10},
+            "costs": {"fee_rate": 0.0, "slippage_ticks": 0, "tick_value_pct": 0.0},
+        },
+    }
+    universe = [UniverseMember(f"{index:06d}", f"S{index}", 1.0, index) for index in range(10)]
+    raw = RawMarketData(
+        simulation_date=date(2026, 5, 7),
+        universe_basis_date=date(2026, 5, 6),
+        universe=universe,
+        stock_returns=[
+            StockReturn(member.symbol, member.name, "08:50", -0.1 if index < 7 else 0.1, 100.0)
+            for index, member in enumerate(universe)
+        ],
+        futures_prices=[FuturesPrice("FUT", "08:50", 350.0), FuturesPrice("FUT", "09:00", 349.0)],
+    )
+    engine = SweepSimulationEngine(provider=None, universe_resolver=None, config=config)
+
+    result = engine.run_from_raw([raw])
+
+    assert len(result.trades) == 1
+    trade = result.trades[0]
+    assert trade.condition_name == "top10_7_down_inverse"
+    assert trade.side == "short"
+    assert trade.label == "inverse"
+    assert trade.net_return_pct > 0

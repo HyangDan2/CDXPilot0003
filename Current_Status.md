@@ -27,7 +27,9 @@ Updated: 2026-05-08
 - Added `docs/KIS_MANUAL_NOTES.md` with relevant TR IDs and endpoint notes.
 - Added sequential sweep simulator:
   - historical stored-snapshot signal time: 08:50
-  - default condition branches: 5/10, 7/10, 10/10 positive
+  - default condition branches: 5/10, 7/10, 10/10 up-long
+  - default inverse branches: 5/10, 7/10, 10/10 down-inverse
+  - inverse means KOSPI200 futures short, not an inverse ETF/ETN
   - exit sweep: 09:00 to 15:20
   - condition threshold uses strict `return_pct > 0`
   - KOSPI200 futures long return calculation with fee/slippage assumptions
@@ -96,17 +98,35 @@ Updated: 2026-05-08
   - mock/KIS REST mode toggle
   - KIS REST, Telegram, and LLM connection tests
   - recent complete-data-day selection
+  - scheduler enable/disable toggle
+  - macOS launchd schedule install/uninstall actions
+  - manual scheduled job execution
+  - scheduler status viewer
+  - Conditions menu for multi-condition editing and LLM queue selection
   - step-by-step progress timeline
   - current status panel
   - run log panel
   - result table
   - markdown report viewer
+- Added scheduler support:
+  - default run times: 08:50, 12:50, 16:50, 20:50
+  - startup delay: 30 seconds
+  - each job performs one-shot re-fetch and re-analysis
+  - lock file prevents overlapping scheduled jobs
+  - state file records last status/report/error
+  - launchd plist generation uses config path only, not secrets
+- Added condition queue support:
+  - `simulation.strategy_conditions` controls enabled simulation cases
+  - `llm_queue` controls which conditions get stateless LLM reports
+  - condition names are normalized to lowercase/number/underscore style
+  - one raw fetch is reused across enabled conditions in the same run
+  - condition-level reports are written under `reports/run_*/conditions/*`
 - Added tests for calendar, signal condition, availability, metrics, multi-condition branching, sweep time generation, and pipeline execution.
 
 ## Verification Performed
 
 - `python -m pytest`
-  - Result: 16 passed
+  - Result: 21 passed
 - `PYTHONPATH=src python -m kosim.app --example`
   - Result: mock pipeline completed successfully
   - Generated ignored runtime artifacts in `data/` and `reports/`
@@ -142,7 +162,12 @@ Updated: 2026-05-08
 - Telegram requires valid `bot_token` and `chat_id`; placeholders are rejected when enabled.
 - LLM requires an OpenAI-compatible endpoint at `/chat/completions`.
 - Telegram Markdown may reject malformed markdown or long messages; file sending is the preferred path.
+- Scheduler launchd jobs can fail if the Python interpreter path, working directory, or PYTHONPATH changes after installation.
+- Scheduler jobs intentionally skip when `schedule.enabled` is false, even if launchd is installed.
+- Manual scheduled jobs in the GUI still wait the configured startup delay before running.
 - Strategy results can be misleading when trade count is low.
+- Long and inverse conditions can both trigger on the same date for looser thresholds; simulation records both and leaves conflict interpretation to reports.
+- Condition-level LLM reports are independent and do not compare against prior LLM calls.
 - Fee, slippage, tick value, and execution timing are simplified assumptions.
 - `config.yaml` must remain local and untracked because it will contain API keys.
 

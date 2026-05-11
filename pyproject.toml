@@ -22,6 +22,7 @@ dev = ["pytest>=8.0"]
 
 [project.scripts]
 kosim = "kosim.app:main"
+kosim-scheduler = "kosim.scheduler:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

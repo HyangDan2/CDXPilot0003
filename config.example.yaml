@@ -80,6 +80,91 @@ simulation:
     positive_threshold_pct: 0.0
     comparison: "greater_than"  # greater_than means return_pct > threshold.
     min_positive_count: 10
+  strategy_conditions:
+    - name: "top10_5_up_long"
+      enabled: true
+      llm_queue: true
+      rule: "min_positive_count"
+      comparison: "greater_than"
+      signal:
+        direction: "up"
+        threshold_pct: 0.0
+        min_count: 5
+      trade:
+        instrument: "kospi200_futures"
+        side: "long"
+        label: "long"
+        entry_time: "08:50"
+    - name: "top10_7_up_long"
+      enabled: true
+      llm_queue: true
+      rule: "min_positive_count"
+      comparison: "greater_than"
+      signal:
+        direction: "up"
+        threshold_pct: 0.0
+        min_count: 7
+      trade:
+        instrument: "kospi200_futures"
+        side: "long"
+        label: "long"
+        entry_time: "08:50"
+    - name: "top10_10_up_long"
+      enabled: true
+      llm_queue: true
+      rule: "min_positive_count"
+      comparison: "greater_than"
+      signal:
+        direction: "up"
+        threshold_pct: 0.0
+        min_count: 10
+      trade:
+        instrument: "kospi200_futures"
+        side: "long"
+        label: "long"
+        entry_time: "08:50"
+    - name: "top10_5_down_inverse"
+      enabled: true
+      llm_queue: true
+      rule: "min_positive_count"
+      comparison: "greater_than"
+      signal:
+        direction: "down"
+        threshold_pct: 0.0
+        min_count: 5
+      trade:
+        instrument: "kospi200_futures"
+        side: "short"
+        label: "inverse"
+        entry_time: "08:50"
+    - name: "top10_7_down_inverse"
+      enabled: true
+      llm_queue: true
+      rule: "min_positive_count"
+      comparison: "greater_than"
+      signal:
+        direction: "down"
+        threshold_pct: 0.0
+        min_count: 7
+      trade:
+        instrument: "kospi200_futures"
+        side: "short"
+        label: "inverse"
+        entry_time: "08:50"
+    - name: "top10_10_down_inverse"
+      enabled: true
+      llm_queue: true
+      rule: "min_positive_count"
+      comparison: "greater_than"
+      signal:
+        direction: "down"
+        threshold_pct: 0.0
+        min_count: 10
+      trade:
+        instrument: "kospi200_futures"
+        side: "short"
+        label: "inverse"
+        entry_time: "08:50"
   entry:
     timing: "after_signal"
     delay_seconds: 0
@@ -103,6 +188,20 @@ data:
   raw_output_dir: "data/raw"
   report_output_dir: "reports"
   holidays: []
+
+schedule:
+  enabled: false
+  timezone: "Asia/Seoul"
+  run_times:
+    - "08:50"
+    - "12:50"
+    - "16:50"
+    - "20:50"
+  startup_delay_seconds: 30
+  skip_if_running: true
+  lock_file: "data/scheduler.lock"
+  state_file: "data/scheduler_state.json"
+  log_dir: "logs"
 
 report:
   raw:
@@ -138,6 +237,10 @@ telegram:
   sequence:
     send_raw_data_before_llm: true
     send_llm_report_after_analysis: true
+  queue:
+    send_only_llm_queue_items: true
+    send_condition_charts: true
+    max_condition_charts: 3
   messages:
     raw_data:
       enabled: true
@@ -166,6 +269,12 @@ llm:
     max_raw_summary_chars: 30000  # Legacy alias. LLM bridge uses max_bridge_chars.
     max_sweep_csv_chars: 50000
     compression_mode: "auto"
+  queue:
+    enabled: true
+    stateless_per_condition: true
+    max_items: 6
+    send_final_summary: false
+    include_empty_results: false
   rag:
     mode: "provided_context_only"
     allow_external_knowledge: false
